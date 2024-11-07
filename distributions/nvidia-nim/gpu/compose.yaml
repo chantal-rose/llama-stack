@@ -1,0 +1,55 @@
+services:
+  nvidia-nim:
+    image: nvcr.io/nim/meta/llama-3.1-8b-instruct:latest
+    network_mode: "host"
+    volumes:
+    - nim-llm-cache:/opt/nim/.cache
+    ports:
+      - "8000:8000"
+    shm_size: 16G
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - NIM_HTTP_API_PORT=8000
+      - NIM_TRITON_LOG_VERBOSE=1
+      - NGC_API_KEY=${NIM_NGC_API_KEY:-${NGC_API_KEY:-ngcapikey}}
+    command: []
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            # that's the closest analogue to --gpus; provide
+            # an integer amount of devices or 'all'
+            count: 1
+            # Devices are reserved using a list of capabilities, making
+            # capabilities the only required field. A device MUST
+            # satisfy all the requested capabilities for a successful
+            # reservation.
+            capabilities: [gpu]
+    runtime: nvidia
+    healthcheck:
+      test: ["CMD", "curl", "-X", "GET", "http://0.0.0.0:8000/v1/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  llamastack:
+    depends_on:
+    - nvidia-nim
+    image: distribution-nvidia
+    network_mode: "host"
+    volumes:
+      - ~/.llama:/root/.llama
+      - ./run.yaml:/root/my-run.yaml
+    ports:
+      - "5000:5000"
+    entrypoint: bash -c "sleep 60; python -m llama_stack.distribution.server.server --yaml_config /root/my-run.yaml"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 3s
+        max_attempts: 5
+        window: 60s
+volumes:
+  nim-llm-cache:
+    driver: local
+
