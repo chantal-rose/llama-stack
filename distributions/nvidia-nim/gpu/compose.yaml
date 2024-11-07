@@ -3,14 +3,16 @@ services:
     image: nvcr.io/nim/meta/llama-3.1-8b-instruct:latest
     network_mode: "host"
     volumes:
-      - $HOME/.cache/nim:/opt/nim/.cache
+    - nim-llm-cache:/opt/nim/.cache
     ports:
       - "8000:8000"
-    devices:
-      - nvidia.com/gpu=all
+    shm_size: 16G
     environment:
       - CUDA_VISIBLE_DEVICES=0
-    command: ["--gpus", "all", "--shm-size", "16GB", "-e", "$NGC_API_KEY", "-v", "$HOME/.cache/nim:/opt/nim/.cache", "-u", "$(id -u)", "--port", "8000"]
+      - NIM_HTTP_API_PORT=8000
+      - NIM_TRITON_LOG_VERBOSE=1
+      - NGC_API_KEY=${NIM_NGC_API_KEY:-${NGC_API_KEY:-ngcapikey}}
+    command: []
     deploy:
       resources:
         reservations:
@@ -26,14 +28,13 @@ services:
             capabilities: [gpu]
     runtime: nvidia
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://nvidia-nim:8000/v1/health/ready"]
+      test: ["CMD", "curl", "-X", "GET", "http://0.0.0.0:8000/v1/health/ready"]
       interval: 5s
       timeout: 5s
       retries: 30
   llamastack:
     depends_on:
-      nvidia-nim:
-        condition: service_healthy
+    - nvidia-nim
     image: distribution-nvidia
     network_mode: "host"
     volumes:
@@ -48,3 +49,7 @@ services:
         delay: 3s
         max_attempts: 5
         window: 60s
+volumes:
+  nim-llm-cache:
+    driver: local
+
