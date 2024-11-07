@@ -42,8 +42,9 @@ services:
     ports:
       - "5000:5000"
     entrypoint: bash -c "sleep 60; python -m llama_stack.distribution.server.server --yaml_config /root/my-run.yaml"
-    restart_policy:
-      condition: on-failure
-      delay: 3s
-      max_attempts: 5
-      window: 60s
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 3s
+        max_attempts: 5
+        window: 60s

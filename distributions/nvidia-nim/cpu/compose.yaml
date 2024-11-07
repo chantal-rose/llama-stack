@@ -24,5 +24,3 @@ services:
         delay: 3s
         max_attempts: 5
         window: 60s
-  volumes:
-    nvidia-nim:
